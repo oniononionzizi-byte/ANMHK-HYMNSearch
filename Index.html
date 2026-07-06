@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>ANM HK PPT 智能搜尋</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        #searchInput { width: 100%; max-width: 400px; padding: 12px; font-size: 18px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; }
+        .result-item { margin: 10px 0; padding: 10px; border-bottom: 1px solid #eee; }
+        .hot { color: #d35400; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>ANM HK PPT 智能搜尋</h1>
+    <input type="text" id="searchInput" placeholder="搜尋歌名、歌詞或 ID...">
+    <div id="results">請稍候，正在載入資料庫...</div>
+
+    <script>
+        let fuse;
+
+        // 簡單的文字標準化（去除符號、統一字型）
+        function normalizeText(str) {
+            if (!str) return '';
+            return str.toString().toLowerCase()
+                .replace(/祢/g, '你').replace(/裡/g, '裏').replace(/唯/g, '惟')
+                .replace(/衞/g, '維').replace(/偉/g, '維');
+        }
+
+        // 讀取 CSV 檔案
+        Papa.parse("hymns_db.csv", {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                // 將 CSV 資料轉換為程式可用的格式
+                const songs = results.data.map(s => ({
+                    id: s[" (ID)"] || s["ID"], // 兼容兩種標題寫法
+                    text: s[" (Text)"] || s["Text"],
+                    isTop: s["IsTop
