@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>ANM HK PPT 智能搜尋</title>
+    
+    <!-- 確保這兩個套件先行載入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fuse.js/6.6.2/fuse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js"></script>
+    
     <style>
         body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
         #searchInput { width: 100%; max-width: 400px; padding: 12px; font-size: 18px; margin-bottom: 20px; border: 1px solid #ccc; border-radius: 5px; }
@@ -18,7 +21,6 @@
     <div id="results"></div>
 
     <script>
-        // 異體字對應表，搜尋時會自動轉換
         const charMap = {
             '祢': '你', '裡': '裏', '唯': '惟',
             '衞': '維', '偉': '維'
@@ -26,7 +28,7 @@
 
         function normalizeText(text) {
             if (!text) return "";
-            let str = text.replace(/\s+/g, ''); // 移除所有空格
+            let str = text.replace(/\s+/g, '');
             for (let key in charMap) {
                 str = str.split(key).join(charMap[key]);
             }
@@ -36,31 +38,34 @@
         let songs = [];
         let fuse;
 
-        // 讀取新的數據庫檔案 hymns_db.csv
-        Papa.parse("hymns_db.csv", {
-            download: true, header: true, skipEmptyLines: true,
-            complete: (results) => {
-                songs = results.data.map(s => ({
-                    ...s,
-                    // 建立標準化後的文字欄位
-                    normalizedText: normalizeText(s["歌詞文字 (Text)"]),
-                    // 設定權重：IsTop1000 為 "1" 給 200 分，否則 50 分
-                    weight: (s["IsTop1000"] == "1") ? 200 : 50
-                }));
+        // 等待所有資源載入後執行
+        window.onload = function() {
+            Papa.parse("hymns_db.csv", {
+                download: true, header: true, skipEmptyLines: true,
+                complete: (results) => {
+                    songs = results.data.map(s => ({
+                        ...s,
+                        normalizedText: normalizeText(s["歌詞文字 (Text)"]),
+                        weight: (s["IsTop1000"] == "1") ? 200 : 50
+                    }));
 
-                // 初始化搜尋引擎
-                fuse = new Fuse(songs, {
-                    keys: [
-                        { name: "normalizedText", weight: 0.7 },
-                        { name: "號碼 (ID)", weight: 0.3 }
-                    ],
-                    threshold: 0.3, // 容錯率
-                    ignoreLocation: true
-                });
-            }
-        });
+                    // 初始化 Fuse，這時候 Fuse 應該已經定義好了
+                    if (typeof Fuse !== 'undefined') {
+                        fuse = new Fuse(songs, {
+                            keys: [
+                                { name: "normalizedText", weight: 0.7 },
+                                { name: "號碼 (ID)", weight: 0.3 }
+                            ],
+                            threshold: 0.3,
+                            ignoreLocation: true
+                        });
+                    } else {
+                        console.error("Fuse 套件未載入，請檢查網路連接。");
+                    }
+                }
+            });
+        };
 
-        // 監聽輸入
         document.getElementById('searchInput').addEventListener('input', (e) => {
             const val = normalizeText(e.target.value);
             const resultsDiv = document.getElementById('results');
@@ -69,11 +74,8 @@
             if (!val || !fuse) return;
 
             const searchResults = fuse.search(val);
-            
-            // 排序：權重高的排前面
             searchResults.sort((a, b) => b.item.weight - a.item.weight);
 
-            // 只顯示前 20 筆，避免螢幕刷屏
             const displayResults = searchResults.slice(0, 20);
 
             if (displayResults.length === 0) {
